@@ -7,19 +7,72 @@ output:
 
 
 ## Loading and preprocessing the data
-
+activity<-read.csv("activity.csv",colClasses=c("integer","Date","integer"))
+#q1
+stepsperday<-ddply(activity, c("date"),summarise,
+                   totalsteps=sum(steps,na.rm=TRUE)
+		                      )
+				      #q2
+				      stepsper5min<-ddply(activity, c("interval"),summarise,
+				                          meansteps = mean(steps,na.rm=TRUE)
+							                      )
 
 
 ## What is mean total number of steps taken per day?
-
+stepshist<-ggplot(stepsperday,aes(x=totalsteps))+geom_histogram()+
+  xlab("Total number of steps")+
+    ggtitle("Histogram of total steps in one day")+
+      theme_bw()
+      print(stepshist)
 
 
 ## What is the average daily activity pattern?
-
+dayline<-ggplot(stepsper5min,aes(x=interval,y=meansteps))+geom_line()+
+  ggtitle("Average steps for each 5-min interval")+
+    ylab("Mean steps")+
+      theme_bw()
+      print(dayline)
 
 
 ## Imputing missing values
+step_interpolation <- function(rownumber){
+  prevrow=rownumber;
+    nextrow=rownumber;
+      while(is.na(activity$steps[prevrow])){
+          prevrow=prevrow-1
+	      if(prevrow<1)return(mean(activity[activity$interval==activity$interval[rownumber],"steps"],na.rm=TRUE))
+	        }
+		  while(is.na(activity$steps[nextrow])){
+		      nextrow=nextrow+1
+		          if(nextrow>nrow(activity))return(mean(activity[activity$interval==activity$interval[rownumber],"steps"],na.rm=TRUE))
+			    }
+			      return(
+			          (activity$steps[prevrow]+activity$steps[nextrow])/2
+				    )
+				    }
 
+				    activity_guessNA <-activity
+				    for(n in 1:nrow(activity)){
+				      if(is.na(activity$steps[n])){
+				          activity_guessNA$steps[n]=step_interpolation(n);
+					    }
+					    }
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+paindays= c("Monday","Tuesday","Wednesday","Thursday","Friday")
+
+activity_guessNA$weekday<-as.factor(ifelse(weekdays(activity_guessNA$date)%in%paindays,"weekday","weekend"))
+
+stepsperinterval.weekdaysplit<-ddply(activity_guessNA, c("interval","weekday"),summarise,
+                    meansteps = mean(steps,na.rm=TRUE)
+		    )
+
+		    weekdayplot<-ggplot(stepsperinterval.weekdaysplit,aes(x=interval,y=meansteps))+
+		      facet_wrap(~weekday,nrow=2,ncol=1)+
+		        geom_line()+
+			  theme_bw()+
+			    ggtitle("Mean steps over each 5min interval split by weekday/weekend")+
+			      ylab("Mean steps")+
+			        xlab("Interval number")
+				print(weekdayplot)
